@@ -1,0 +1,959 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="description" content="물건 둔 곳을 대신 기억해 줘요">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="어디뒀지">
+<title>어디뒀지?</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" type="image/png" href="./icon-192.png">
+<style>
+  :root {
+    --bg: #FFFFFF;
+    --sub: #E5E7EB;
+    --ink: #111827;
+    --muted: #4B5563;
+    --danger: #B91C1C;
+    --accent: #34C759;      /* 아이폰 녹색: 주요 버튼 · 검색창 테두리 */
+    --on-accent: #111827;   /* 녹색 위 글자 (잘 읽히게 진한 색) */
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    font-size: 18px;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  [hidden] { display: none !important; }
+
+  /* ---------- 첫 화면 ---------- */
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  .top {
+    padding: calc(18px + env(safe-area-inset-top)) 20px 4px;
+  }
+  .top h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .logo { flex: none; width: 32px; height: 32px; }
+  .list-head {
+    padding: 6px 20px 10px;
+    color: var(--muted);
+    font-size: 16px;
+  }
+  .list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-height: 92px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: var(--bg);
+    border: 1px solid var(--sub);
+    border-radius: var(--radius);
+    text-align: left;
+  }
+  .item:active { background: #F9FAFB; }
+  .thumb {
+    flex: none;
+    width: 66px;
+    height: 66px;
+    border-radius: 14px;
+    background: var(--sub);
+    object-fit: cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .thumb svg { width: 28px; height: 28px; }
+  .info { flex: 1; min-width: 0; }
+  .info .name {
+    font-size: 19px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .info .place {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  .info .date { color: var(--muted); font-size: 16px; }
+  .empty {
+    margin-top: 40px;
+    padding: 0 12px;
+    text-align: center;
+    color: var(--muted);
+    word-break: keep-all;
+  }
+  .empty strong { display: block; color: var(--ink); font-size: 20px; margin-bottom: 6px; }
+
+  .bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--sub);
+    background: var(--bg);
+  }
+  .search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 60px;
+    padding: 0 8px 0 20px;
+    border: 2px solid var(--accent);
+    border-radius: 999px;
+  }
+  .search svg { flex: none; width: 26px; height: 26px; }
+  .search input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font-size: 20px;
+  }
+  .search input::placeholder { color: var(--muted); }
+  .search input::-webkit-search-cancel-button { display: none; }
+  .clear {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--sub);
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  /* ---------- 버튼 ---------- */
+  .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 56px;
+    padding: 0 24px;
+    border: 0;
+    border-radius: 999px;
+    font-size: 19px;
+    font-weight: 700;
+  }
+  .btn-main { background: var(--accent); color: var(--on-accent); }
+  .btn-sub { background: var(--sub); color: var(--ink); }
+  .btn-danger { background: var(--bg); color: var(--danger); border: 2px solid var(--danger); }
+  .btn:active { opacity: 0.8; }
+  .btn:disabled { opacity: 0.5; }
+  .row { display: flex; gap: 10px; }
+  .row .btn { flex: 1; }
+
+  /* ---------- 겹쳐 뜨는 화면 ---------- */
+  .sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+  }
+  .sheet-inner {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 560px;
+    height: 100%;
+    margin: 0 auto;
+  }
+  .sheet-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: calc(12px + env(safe-area-inset-top)) 16px 8px;
+  }
+  .sheet-top h2 { font-size: 24px; font-weight: 800; }
+  .close {
+    min-height: 48px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--sub);
+    font-weight: 700;
+  }
+  .sheet-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 20px 20px;
+  }
+  .sheet-foot {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--sub);
+  }
+
+  /* 자세히 보기 */
+  .big-photo {
+    display: block;
+    width: 100%;
+    max-height: 52vh;
+    object-fit: contain;
+    background: var(--sub);
+    border-radius: 20px;
+    margin-bottom: 18px;
+  }
+  .label { color: var(--muted); font-size: 16px; font-weight: 700; margin-top: 14px; }
+  .d-name { font-size: 26px; font-weight: 800; line-height: 1.3; overflow-wrap: anywhere; }
+  .d-place { font-size: 22px; font-weight: 600; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .d-date { font-size: 18px; }
+
+  /* 적기 */
+  .field { margin-bottom: 22px; }
+  .field > label, .field > .label-text {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .field small { color: var(--muted); font-weight: 400; font-size: 16px; }
+  .field input[type="text"] {
+    width: 100%;
+    height: 56px;
+    padding: 0 20px;
+    border: 2px solid var(--sub);
+    border-radius: 999px;
+    background: var(--bg);
+    font-size: 19px;
+    outline: 0;
+  }
+  .field input[type="text"]:focus { border-color: var(--ink); }
+  .photo-preview {
+    display: block;
+    width: 100%;
+    max-height: 40vh;
+    object-fit: contain;
+    background: var(--sub);
+    border-radius: 20px;
+    margin-bottom: 10px;
+  }
+  .error {
+    margin-bottom: 14px;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    background: #FEF2F2;
+    color: var(--danger);
+    font-weight: 700;
+  }
+  .hidden-input { display: none; }
+
+  /* ---------- 확인 창 ---------- */
+  .dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    background: rgba(17, 24, 39, 0.45);
+  }
+  .dialog-box {
+    width: 100%;
+    max-width: 520px;
+    padding: 24px 20px 20px;
+    border-radius: 24px;
+    background: var(--bg);
+    text-align: center;
+  }
+  .dialog-box h3 { font-size: 22px; margin-bottom: 6px; }
+  .dialog-box p { color: var(--muted); margin-bottom: 20px; }
+
+  /* ---------- 인트로 화면 ---------- */
+  .intro {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    background: var(--bg);
+    transition: opacity 0.4s ease;
+  }
+  .intro svg { width: 120px; height: 120px; }
+  .intro .intro-name { font-size: 34px; font-weight: 800; letter-spacing: -0.5px; }
+  .intro.fade { opacity: 0; pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { .intro { transition: none; } }
+
+  /* ---------- 알림 띠 ---------- */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(160px + env(safe-area-inset-bottom));
+    z-index: 30;
+    transform: translateX(-50%);
+    padding: 12px 22px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: #FFFFFF;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<!-- 인트로 화면 (3초 뒤 사라짐, 누르면 바로 넘어감) -->
+<div class="intro" id="intro" role="presentation">
+  <svg viewBox="0 0 32 32" aria-hidden="true">
+    <circle cx="13.5" cy="13.5" r="9.5" fill="none" stroke="#34C759" stroke-width="3"/>
+    <path d="M20.6 20.6L28 28" stroke="#34C759" stroke-width="3.6" stroke-linecap="round"/>
+    <path d="M13.5 19.6s-4.6-4.2-4.6-7.7a4.6 4.6 0 0 1 9.2 0c0 3.5-4.6 7.7-4.6 7.7z" fill="#FF3B30"/>
+    <circle cx="13.5" cy="11.9" r="1.7" fill="#FFFFFF"/>
+  </svg>
+  <div class="intro-name">어디뒀지?</div>
+</div>
+
+<!-- 첫 화면 -->
+<div class="app">
+  <header class="top">
+    <h1>
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="13.5" cy="13.5" r="9.5" fill="none" stroke="#34C759" stroke-width="3"/>
+        <path d="M20.6 20.6L28 28" stroke="#34C759" stroke-width="3.6" stroke-linecap="round"/>
+        <path d="M13.5 19.6s-4.6-4.2-4.6-7.7a4.6 4.6 0 0 1 9.2 0c0 3.5-4.6 7.7-4.6 7.7z" fill="#FF3B30"/>
+        <circle cx="13.5" cy="11.9" r="1.7" fill="#FFFFFF"/>
+      </svg>
+      어디뒀지?
+    </h1>
+  </header>
+  <div class="list-head" id="listHead" aria-live="polite"></div>
+  <main class="list" id="list"></main>
+  <div class="bottom">
+    <label class="search">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="13.5" cy="13.5" r="9.5" fill="none" stroke="#34C759" stroke-width="3"/>
+        <path d="M20.6 20.6L28 28" stroke="#34C759" stroke-width="3.6" stroke-linecap="round"/>
+        <path d="M13.5 19.6s-4.6-4.2-4.6-7.7a4.6 4.6 0 0 1 9.2 0c0 3.5-4.6 7.7-4.6 7.7z" fill="#FF3B30"/>
+        <circle cx="13.5" cy="11.9" r="1.7" fill="#FFFFFF"/>
+      </svg>
+      <input id="search" type="search" placeholder="무엇을 찾나요?" aria-label="물건 찾기"
+             autocomplete="off" enterkeyhint="search">
+      <button class="clear" id="clearSearch" type="button" aria-label="검색어 지우기" hidden>×</button>
+    </label>
+    <button class="btn btn-main" id="newBtn" type="button">+ 새로 적기</button>
+  </div>
+</div>
+
+<!-- 자세히 보기 -->
+<section class="sheet" id="detailSheet" hidden aria-label="자세히 보기">
+  <div class="sheet-inner">
+    <div class="sheet-top">
+      <h2>자세히 보기</h2>
+      <button class="close" type="button" data-back>닫기</button>
+    </div>
+    <div class="sheet-body">
+      <img class="big-photo" id="dPhoto" alt="" hidden>
+      <div class="label">물건</div>
+      <div class="d-name" id="dName"></div>
+      <div class="label">둔 곳</div>
+      <div class="d-place" id="dPlace"></div>
+      <div class="label">적은 날짜</div>
+      <div class="d-date" id="dDate"></div>
+    </div>
+    <div class="sheet-foot row">
+      <button class="btn btn-danger" id="deleteBtn" type="button">지우기</button>
+      <button class="btn btn-main" id="editBtn" type="button">고치기</button>
+    </div>
+  </div>
+</section>
+
+<!-- 새로 적기 / 고치기 -->
+<section class="sheet" id="formSheet" hidden aria-label="적기">
+  <form class="sheet-inner" id="form" novalidate>
+    <div class="sheet-top">
+      <h2 id="formTitle">새로 적기</h2>
+      <button class="close" type="button" data-back>취소</button>
+    </div>
+    <div class="sheet-body">
+      <div class="error" id="formError" role="alert" hidden></div>
+      <div class="field">
+        <label for="fName">물건 이름 <small>(꼭)</small></label>
+        <input type="text" id="fName" maxlength="60" autocomplete="off" placeholder="예: 여권, 차 열쇠" enterkeyhint="next">
+      </div>
+      <div class="field">
+        <label for="fPlace">둔 곳 <small>(꼭)</small></label>
+        <input type="text" id="fPlace" maxlength="120" autocomplete="off" placeholder="예: 안방 서랍 두 번째 칸" enterkeyhint="done">
+      </div>
+      <div class="field">
+        <span class="label-text">사진 <small>(넣고 싶을 때만)</small></span>
+        <img class="photo-preview" id="fPreview" alt="넣은 사진" hidden>
+        <div class="row" id="photoPick">
+          <button class="btn btn-sub" type="button" id="cameraBtn">사진 찍기</button>
+          <button class="btn btn-sub" type="button" id="albumBtn">앨범에서 고르기</button>
+        </div>
+        <button class="btn btn-sub" type="button" id="removePhotoBtn" hidden style="margin-top:10px">사진 빼기</button>
+        <input class="hidden-input" type="file" id="cameraInput" accept="image/*" capture="environment">
+        <input class="hidden-input" type="file" id="albumInput" accept="image/*">
+      </div>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn btn-main" type="submit" id="saveBtn">저장</button>
+    </div>
+  </form>
+</section>
+
+<!-- 정말 지울까요? -->
+<div class="dialog" id="confirmDialog" hidden role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="dialog-box">
+    <h3 id="confirmTitle">정말 지울까요?</h3>
+    <p>지운 기록은 되돌릴 수 없어요.</p>
+    <div class="row">
+      <button class="btn btn-sub" type="button" id="confirmNo">취소</button>
+      <button class="btn btn-danger" type="button" id="confirmYes">지우기</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ===== 저장소 이름 (바꾸지 않기) ===== */
+  var ITEMS_KEY = 'my-app-items';      // 글 기록 (localStorage)
+  var PHOTO_DB = 'my-app-photos';      // 사진 보관함 (IndexedDB)
+  var PHOTO_STORE = 'photos';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var PIN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="#4B5563" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
+
+  /* ===== 글 기록 ===== */
+  function loadItems() {
+    try {
+      var v = JSON.parse(localStorage.getItem(ITEMS_KEY) || '[]');
+      return Array.isArray(v) ? v : [];
+    } catch (e) { return []; }
+  }
+  function saveItems() {
+    localStorage.setItem(ITEMS_KEY, JSON.stringify(items));
+  }
+  var items = loadItems();
+
+  function makeId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+  function findItem(id) {
+    for (var i = 0; i < items.length; i++) if (items[i].id === id) return items[i];
+    return null;
+  }
+
+  /* ===== 사진 보관함 (IndexedDB) ===== */
+  var dbPromise = null;
+  function openDb() {
+    if (!dbPromise) {
+      dbPromise = new Promise(function (resolve, reject) {
+        var req = indexedDB.open(PHOTO_DB, 1);
+        req.onupgradeneeded = function () { req.result.createObjectStore(PHOTO_STORE); };
+        req.onsuccess = function () { resolve(req.result); };
+        req.onerror = function () { reject(req.error); };
+      });
+      dbPromise.catch(function () { dbPromise = null; });
+    }
+    return dbPromise;
+  }
+  function photoTx(mode, work) {
+    return openDb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(PHOTO_STORE, mode);
+        var req = work(tx.objectStore(PHOTO_STORE));
+        tx.oncomplete = function () { resolve(req ? req.result : undefined); };
+        tx.onerror = function () { reject(tx.error); };
+        tx.onabort = function () { reject(tx.error); };
+      });
+    });
+  }
+  function putPhoto(id, blob) {
+    // 오래된 아이폰에서도 안전하도록 사진을 바이트 묶음으로 바꿔 저장
+    return blobToBuffer(blob).then(function (buf) {
+      return photoTx('readwrite', function (s) { return s.put({ type: blob.type, data: buf }, id); });
+    });
+  }
+  function getPhoto(id) {
+    return photoTx('readonly', function (s) { return s.get(id); }).then(function (rec) {
+      return rec ? new Blob([rec.data], { type: rec.type || 'image/jpeg' }) : null;
+    });
+  }
+  function deletePhoto(id) {
+    return photoTx('readwrite', function (s) { return s.delete(id); });
+  }
+  function blobToBuffer(blob) {
+    if (blob.arrayBuffer) return blob.arrayBuffer();
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(r.result); };
+      r.onerror = function () { reject(r.error); };
+      r.readAsArrayBuffer(blob);
+    });
+  }
+
+  var photoUrls = {};
+  function photoUrl(id) {
+    if (photoUrls[id]) return Promise.resolve(photoUrls[id]);
+    return getPhoto(id).then(function (blob) {
+      if (!blob) return null;
+      if (!photoUrls[id]) photoUrls[id] = URL.createObjectURL(blob);
+      return photoUrls[id];
+    });
+  }
+  function forgetPhotoUrl(id) {
+    if (photoUrls[id]) { URL.revokeObjectURL(photoUrls[id]); delete photoUrls[id]; }
+  }
+
+  /* 사진 줄이기: 긴 변 1024px, JPEG 압축 */
+  function isHeic(file) {
+    return /hei[cf]/i.test(file.type || '') || /\.hei[cf]$/i.test(file.name || '');
+  }
+  // 사진 열기: 먼저 빠른 방법(createImageBitmap), 안 되면 보통 방법(Image)
+  function decodePhoto(file, url) {
+    var viaImage = function () {
+      return new Promise(function (resolve, reject) {
+        var img = new Image();
+        img.onload = function () { resolve({ src: img, w: img.naturalWidth, h: img.naturalHeight }); };
+        img.onerror = function () { reject(new Error('decode')); };
+        img.src = url;
+      });
+    };
+    if (window.createImageBitmap) {
+      return createImageBitmap(file, { imageOrientation: 'from-image' }).then(function (bmp) {
+        return { src: bmp, w: bmp.width, h: bmp.height };
+      }, viaImage);
+    }
+    return viaImage();
+  }
+  function shrinkPhoto(file) {
+    var url = URL.createObjectURL(file);
+    return decodePhoto(file, url).then(function (pic) {
+      var img = pic.src;
+      var max = 1024;
+      var w = pic.w, h = pic.h;
+      if (!w || !h) throw new Error('decode');
+      var scale = Math.min(1, max / Math.max(w, h));
+      w = Math.max(1, Math.round(w * scale));
+      h = Math.max(1, Math.round(h * scale));
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      return new Promise(function (resolve, reject) {
+        canvas.toBlob(function (b) { b ? resolve(b) : reject(new Error('사진을 줄이지 못했어요')); }, 'image/jpeg', 0.8);
+      });
+    }).then(function (blob) {
+      URL.revokeObjectURL(url);
+      return blob;
+    }, function (err) {
+      URL.revokeObjectURL(url);
+      throw err;
+    });
+  }
+
+  /* ===== 날짜 보기 좋게 ===== */
+  function dayStart(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); }
+  function timeText(d) { return d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' }); }
+  function shortDate(t) {
+    var d = new Date(t), now = new Date();
+    var diff = Math.round((dayStart(now) - dayStart(d)) / 86400000);
+    if (diff === 0) return '오늘 ' + timeText(d);
+    if (diff === 1) return '어제 ' + timeText(d);
+    if (d.getFullYear() === now.getFullYear()) return (d.getMonth() + 1) + '월 ' + d.getDate() + '일';
+    return d.getFullYear() + '년 ' + (d.getMonth() + 1) + '월 ' + d.getDate() + '일';
+  }
+  function fullDate(t) {
+    var d = new Date(t);
+    return d.getFullYear() + '년 ' + (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + timeText(d);
+  }
+
+  /* ===== 목록 그리기 ===== */
+  var searchInput = $('search');
+  function render() {
+    var q = searchInput.value.trim().toLowerCase();
+    $('clearSearch').hidden = searchInput.value === '';
+    var sorted = items.slice().sort(function (a, b) { return b.date - a.date; });
+    var shown = q ? sorted.filter(function (it) {
+      return (it.name + ' ' + it.place).toLowerCase().indexOf(q) !== -1;
+    }) : sorted;
+
+    var list = $('list');
+    list.textContent = '';
+
+    if (q) {
+      $('listHead').textContent = '‘' + searchInput.value.trim() + '’ 찾은 결과 ' + shown.length + '개';
+    } else {
+      $('listHead').textContent = items.length ? '내 기록 ' + items.length + '개 · 최근 순' : '';
+    }
+
+    if (!shown.length) {
+      var empty = document.createElement('div');
+      empty.className = 'empty';
+      var strong = document.createElement('strong');
+      var p = document.createElement('span');
+      if (q) {
+        strong.textContent = '찾는 기록이 없어요';
+        p.textContent = '다른 낱말로 찾아보거나, 아래에서 새로 적어 보세요.';
+      } else {
+        strong.textContent = '아직 적은 물건이 없어요';
+        p.textContent = '물건을 두고 나면 아래 “+ 새로 적기”를 눌러 보세요.';
+      }
+      empty.appendChild(strong);
+      empty.appendChild(p);
+      list.appendChild(empty);
+      return;
+    }
+
+    shown.forEach(function (it) {
+      var row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'item';
+      row.addEventListener('click', function () { openDetail(it.id); });
+
+      var thumb;
+      if (it.hasPhoto) {
+        thumb = document.createElement('img');
+        thumb.className = 'thumb';
+        thumb.alt = '';
+        photoUrl(it.id).then(function (u) { if (u) thumb.src = u; }).catch(function () {});
+      } else {
+        thumb = document.createElement('div');
+        thumb.className = 'thumb';
+        thumb.innerHTML = PIN_SVG;
+      }
+
+      var info = document.createElement('div');
+      info.className = 'info';
+      var n = document.createElement('div'); n.className = 'name'; n.textContent = it.name;
+      var pl = document.createElement('div'); pl.className = 'place'; pl.textContent = it.place;
+      var dt = document.createElement('div'); dt.className = 'date'; dt.textContent = shortDate(it.date);
+      info.appendChild(n); info.appendChild(pl); info.appendChild(dt);
+
+      row.appendChild(thumb);
+      row.appendChild(info);
+      list.appendChild(row);
+    });
+  }
+
+  searchInput.addEventListener('input', render);
+  searchInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); searchInput.blur(); }
+  });
+  $('clearSearch').addEventListener('click', function () {
+    searchInput.value = '';
+    render();
+    searchInput.focus();
+  });
+
+  /* ===== 겹쳐 뜨는 화면 (휴대폰 뒤로가기 버튼으로도 닫힘) ===== */
+  var openSheets = [];
+  function showSheet(id) {
+    $(id).hidden = false;
+    openSheets.push(id);
+    history.pushState({ sheet: id }, '');
+  }
+  function hideTopSheet() {
+    var id = openSheets.pop();
+    if (!id) return;
+    $(id).hidden = true;
+    if (id === 'formSheet') onFormClosed();
+    if (id === 'detailSheet') currentId = null;
+  }
+  function back() { history.back(); }
+  window.addEventListener('popstate', function () {
+    if (!$('confirmDialog').hidden) $('confirmDialog').hidden = true;
+    hideTopSheet();
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-back]'), function (b) {
+    b.addEventListener('click', back);
+  });
+
+  /* ===== 자세히 보기 ===== */
+  var currentId = null;
+  function fillDetail(it) {
+    $('dName').textContent = it.name;
+    $('dPlace').textContent = it.place;
+    $('dDate').textContent = fullDate(it.date);
+    var img = $('dPhoto');
+    img.hidden = true;
+    img.removeAttribute('src');
+    if (it.hasPhoto) {
+      photoUrl(it.id).then(function (u) {
+        if (u && currentId === it.id) { img.src = u; img.alt = it.name + ' 사진'; img.hidden = false; }
+      }).catch(function () {});
+    }
+  }
+  function openDetail(id) {
+    var it = findItem(id);
+    if (!it) return;
+    currentId = id;
+    fillDetail(it);
+    showSheet('detailSheet');
+  }
+  $('editBtn').addEventListener('click', function () {
+    var it = findItem(currentId);
+    if (it) openForm(it);
+  });
+  $('deleteBtn').addEventListener('click', function () {
+    $('confirmDialog').hidden = false;
+    $('confirmNo').focus();
+  });
+  $('confirmNo').addEventListener('click', function () { $('confirmDialog').hidden = true; });
+  $('confirmDialog').addEventListener('click', function (e) {
+    if (e.target === $('confirmDialog')) $('confirmDialog').hidden = true;
+  });
+  $('confirmYes').addEventListener('click', function () {
+    var id = currentId;
+    $('confirmDialog').hidden = true;
+    var it = findItem(id);
+    if (!it) return;
+    items = items.filter(function (x) { return x.id !== id; });
+    try { saveItems(); } catch (e) { items = loadItems(); toast('지우지 못했어요'); return; }
+    if (it.hasPhoto) { deletePhoto(id).catch(function () {}); forgetPhotoUrl(id); }
+    render();
+    back();
+    toast('지웠어요');
+  });
+
+  /* ===== 새로 적기 / 고치기 ===== */
+  var editingId = null;     // 고치는 중인 기록 (새로 적기면 null)
+  var newPhoto = null;      // 새로 넣은 사진 (줄인 것)
+  var removePhoto = false;  // 원래 사진을 뺐는지
+  var previewUrl = null;
+  var saving = false;
+
+  function setPreview(url) {
+    if (previewUrl && previewUrl !== url && !isStoredUrl(previewUrl)) URL.revokeObjectURL(previewUrl);
+    previewUrl = url;
+    var img = $('fPreview');
+    if (url) { img.src = url; img.hidden = false; }
+    else { img.removeAttribute('src'); img.hidden = true; }
+    $('removePhotoBtn').hidden = !url;
+    $('cameraBtn').textContent = url ? '다시 찍기' : '사진 찍기';
+    $('albumBtn').textContent = url ? '다른 사진 고르기' : '앨범에서 고르기';
+  }
+  function isStoredUrl(u) {
+    for (var k in photoUrls) if (photoUrls[k] === u) return true;
+    return false;
+  }
+  function showError(msg) {
+    var box = $('formError');
+    box.textContent = msg || '';
+    box.hidden = !msg;
+  }
+
+  function openForm(it) {
+    editingId = it ? it.id : null;
+    newPhoto = null;
+    removePhoto = false;
+    saving = false;
+    $('saveBtn').disabled = false;
+    showError('');
+    $('formTitle').textContent = it ? '고치기' : '새로 적기';
+    $('fName').value = it ? it.name : '';
+    $('fPlace').value = it ? it.place : '';
+    setPreview(null);
+    if (it && it.hasPhoto) {
+      photoUrl(it.id).then(function (u) { if (u && editingId === it.id && !newPhoto && !removePhoto) setPreview(u); }).catch(function () {});
+    }
+    showSheet('formSheet');
+    if (!it) setTimeout(function () { $('fName').focus(); }, 50);
+  }
+  function onFormClosed() {
+    setPreview(null);
+    newPhoto = null;
+    $('fName').blur(); $('fPlace').blur();
+    if (pendingReload) location.reload();
+  }
+
+  $('newBtn').addEventListener('click', function () { openForm(null); });
+  $('cameraBtn').addEventListener('click', function () { $('cameraInput').click(); });
+  $('albumBtn').addEventListener('click', function () { $('albumInput').click(); });
+  $('fName').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); $('fPlace').focus(); }
+  });
+
+  function onPhotoChosen(e) {
+    var file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    showError('');
+    $('saveBtn').disabled = true;
+    $('saveBtn').textContent = '사진 준비 중…';
+    shrinkPhoto(file).then(function (blob) {
+      newPhoto = blob;
+      removePhoto = false;
+      setPreview(URL.createObjectURL(blob));
+    }).catch(function () {
+      showError(isHeic(file)
+        ? '아이폰 사진(HEIC)은 컴퓨터 크롬에서는 열리지 않아요. 휴대폰에서는 잘 돼요. 컴퓨터에서 시험할 때는 JPG 사진을 골라 주세요.'
+        : '이 사진은 열 수 없어요. 다른 사진을 골라 주세요.');
+    }).then(function () {
+      $('saveBtn').disabled = false;
+      $('saveBtn').textContent = '저장';
+    });
+  }
+  $('cameraInput').addEventListener('change', onPhotoChosen);
+  $('albumInput').addEventListener('change', onPhotoChosen);
+  $('removePhotoBtn').addEventListener('click', function () {
+    newPhoto = null;
+    removePhoto = true;
+    setPreview(null);
+  });
+
+  $('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (saving) return;
+    var name = $('fName').value.trim();
+    var place = $('fPlace').value.trim();
+    if (!name) { showError('물건 이름을 적어 주세요.'); $('fName').focus(); return; }
+    if (!place) { showError('둔 곳을 적어 주세요.'); $('fPlace').focus(); return; }
+    showError('');
+    saving = true;
+    $('saveBtn').disabled = true;
+
+    var old = editingId ? findItem(editingId) : null;
+    var id = old ? old.id : makeId();
+    var hadPhoto = old ? !!old.hasPhoto : false;
+    var hasPhoto = hadPhoto;
+
+    var photoStep = Promise.resolve();
+    if (newPhoto) {
+      photoStep = putPhoto(id, newPhoto).then(function () { forgetPhotoUrl(id); hasPhoto = true; });
+    } else if (removePhoto && hadPhoto) {
+      photoStep = deletePhoto(id).then(function () { forgetPhotoUrl(id); hasPhoto = false; });
+    }
+
+    photoStep.then(function () {
+      var record = { id: id, name: name, place: place, hasPhoto: hasPhoto, date: Date.now() };
+      var before = items;
+      items = items.filter(function (x) { return x.id !== id; });
+      items.unshift(record);
+      try {
+        saveItems();
+      } catch (err) {
+        items = before;
+        throw new Error('full');
+      }
+      askToKeep();
+      searchInput.value = '';
+      render();
+      if (old && currentId === id) fillDetail(record);
+      back();
+      toast(old ? '고쳤어요' : '저장했어요');
+    }).catch(function (err) {
+      saving = false;
+      $('saveBtn').disabled = false;
+      showError(err && err.message === 'full'
+        ? '휴대폰 저장 공간이 부족해 저장하지 못했어요.'
+        : '사진을 저장하지 못했어요. “사진 빼기”를 누르고 다시 저장해 보세요.');
+    });
+  });
+
+  /* ===== 짧은 알림 ===== */
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.hidden = true; }, 1800);
+  }
+
+  /* ===== 기록을 함부로 지우지 않게 부탁 ===== */
+  function askToKeep() {
+    try {
+      if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persisted().then(function (ok) {
+          if (!ok) return navigator.storage.persist();
+        }).catch(function () {});
+      }
+    } catch (e) {}
+  }
+  askToKeep();
+
+  /* ===== 서비스 워커 (인터넷 없이 열기 · 자동 업데이트) ===== */
+  var pendingReload = false;
+  if ('serviceWorker' in navigator) {
+    var hadController = !!navigator.serviceWorker.controller;
+    var reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!hadController) { hadController = true; return; }   // 처음 설치 때는 새로고침 안 함
+      if (reloading) return;
+      if (openSheets.indexOf('formSheet') !== -1) { pendingReload = true; return; } // 적는 중이면 나중에
+      reloading = true;
+      location.reload();
+    });
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(function (reg) {
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'visible') reg.update().catch(function () {});
+        });
+      }).catch(function () {});
+    });
+  }
+
+  /* ===== 인트로 화면: 3초 보이고 사라짐 (누르면 바로) ===== */
+  var intro = $('intro');
+  var introDone = false;
+  function endIntro() {
+    if (introDone) return;
+    introDone = true;
+    intro.classList.add('fade');
+    setTimeout(function () { intro.hidden = true; }, 450);
+  }
+  intro.addEventListener('click', endIntro);
+  setTimeout(endIntro, 3000);
+
+  render();
+})();
+</script>
+</body>
+</html>
